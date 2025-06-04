@@ -1,5 +1,6 @@
 import annotations.*;
 
+import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -10,11 +11,11 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 
 public class TestRunner extends ClassLoader {
-    public static void main(String[] args) throws InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
+    public static void main(String[] args) throws ReflectiveOperationException {
         TestRunner.runTests(FirstTestClass.class);
     }
 
-    public static void runTests(Class<?> c) throws NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException {
+    public static void runTests(Class<?> c) throws ReflectiveOperationException {
         Object testObject = c.getDeclaredConstructor().newInstance();
         var methods = c.getDeclaredMethods();
         AtomicInteger beforeSuiteCount = new AtomicInteger();
@@ -25,9 +26,9 @@ public class TestRunner extends ClassLoader {
         AtomicReference<Method> afterTestMethod = new AtomicReference<>();
         List<Method> testMethods = new ArrayList<>();
         Arrays.stream(methods).forEach(method -> {
-            if (isAnnotationAppliedToMethod(method, BeforeSuite.class)) {
+            if (method.isAnnotationPresent(BeforeSuite.class)) {
                 beforeSuiteCount.getAndIncrement();
-                if (!isMethodStatic(method)) {
+                if (Modifier.isStatic(method.getModifiers())) {
                     throw new RuntimeException(String.format("%s is applied to a non-static method: %s\n",
                             method.getDeclaredAnnotation(BeforeSuite.class).annotationType().getName(),
                             method.getName())
@@ -39,9 +40,9 @@ public class TestRunner extends ClassLoader {
                     );
                 }
                 beforeSuiteMethod.set(method);
-            } else if (isAnnotationAppliedToMethod(method, AfterSuite.class)) {
+            } else if (method.isAnnotationPresent(AfterSuite.class)) {
                 afterSuiteCount.getAndIncrement();
-                if (!isMethodStatic(method)) {
+                if (!Modifier.isStatic(method.getModifiers())) {
                     throw new RuntimeException(String.format("%s is applied to a non-static method: %s\n",
                             method.getDeclaredAnnotation(AfterSuite.class), method.getName())
                     );
@@ -52,8 +53,8 @@ public class TestRunner extends ClassLoader {
                     );
                 }
                 afterSuiteMethod.set(method);
-            } else if (isAnnotationAppliedToMethod(method, Test.class)) {
-                if (isMethodStatic(method)) {
+            } else if (method.isAnnotationPresent(Test.class)) {
+                if (Modifier.isStatic(method.getModifiers())) {
                     throw new RuntimeException(String.format("%s is applied to a static method: %s\n",
                             method.getDeclaredAnnotation(Test.class), method.getName())
                     );
@@ -62,15 +63,15 @@ public class TestRunner extends ClassLoader {
                 int priority = testAnnotation.priority();
                 if (priority < 1 || priority > 10) throw new RuntimeException("Priority must be between 1 and 10");
                 testMethods.add(method);
-            } else if (isAnnotationAppliedToMethod(method, BeforeTest.class)) {
-                if (isMethodStatic(method)) {
+            } else if (method.isAnnotationPresent(BeforeTest.class)) {
+                if (Modifier.isStatic(method.getModifiers())) {
                     throw new RuntimeException(String.format("%s is applied to a static method: %s\n",
                             method.getDeclaredAnnotation(BeforeTest.class), method.getName())
                     );
                 }
                 beforeTestMethod.set(method);
-            } else if (isAnnotationAppliedToMethod(method, AfterTest.class)) {
-                if (isMethodStatic(method)) {
+            } else if (method.isAnnotationPresent(AfterTest.class)) {
+                if (Modifier.isStatic(method.getModifiers())) {
                     throw new RuntimeException(String.format("%s is applied to a static method: %s\n",
                             method.getDeclaredAnnotation(AfterTest.class), method.getName())
                     );
@@ -104,7 +105,7 @@ public class TestRunner extends ClassLoader {
                 if (csvSource != null) {
                     String[] values = csvSource.value().split(",");
                     Class<?>[] parameterTypes = testMethod.getParameterTypes();
-                    List<Object> parameters = new ArrayList<>();
+                    List<Serializable> parameters = new ArrayList<>();
                     IntStream.range(0, values.length).forEach(i -> parameters.add(convertStringToType(values[i].trim(), parameterTypes[i])));
                     try {
                         testMethod.invoke(testObject, parameters.toArray());
@@ -137,15 +138,7 @@ public class TestRunner extends ClassLoader {
         }
     }
 
-    private static boolean isMethodStatic(Method method) {
-        return Modifier.isStatic(method.getModifiers());
-    }
-
-    private static boolean isAnnotationAppliedToMethod(Method method, Class<? extends Annotation> annotation) {
-        return method.isAnnotationPresent(annotation);
-    }
-
-    private static Object convertStringToType(String value, Class<?> type) {
+    private static Serializable convertStringToType(String value, Class<?> type) {
         if (type == int.class || type == Integer.class) {
             try {
                 return Integer.parseInt(value);
@@ -161,7 +154,6 @@ public class TestRunner extends ClassLoader {
                 throw new IllegalArgumentException("Cannot convert '" + value + "' to boolean", e);
             }
         }
-        // Добавьте другие типы по необходимости
         throw new IllegalArgumentException("Unsupported type: " + type);
     }
 }
