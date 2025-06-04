@@ -1,7 +1,6 @@
 import annotations.*;
 
 import java.io.Serializable;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -28,7 +27,7 @@ public class TestRunner extends ClassLoader {
         Arrays.stream(methods).forEach(method -> {
             if (method.isAnnotationPresent(BeforeSuite.class)) {
                 beforeSuiteCount.getAndIncrement();
-                if (Modifier.isStatic(method.getModifiers())) {
+                if (!Modifier.isStatic(method.getModifiers())) {
                     throw new RuntimeException(String.format("%s is applied to a non-static method: %s\n",
                             method.getDeclaredAnnotation(BeforeSuite.class).annotationType().getName(),
                             method.getName())
