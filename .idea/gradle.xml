@@ -21,6 +21,10 @@
           </set>
         </option>
       </GradleProjectSettings>
+      <GradleProjectSettings>
+        <option name="externalProjectPath" value="$PROJECT_DIR$/HomeWork_3" />
+        <option name="gradleHome" value="$PROJECT_DIR$/../../../../Gradle/gradle-8.11.1" />
+      </GradleProjectSettings>
     </option>
   </component>
 </project>
